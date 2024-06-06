@@ -92,6 +92,7 @@ function writeUserSettings(userSettings: UserSettings | null | undefined) {
             character_lname: userSettings.character_lname,
             character_image: userSettings.character_image,
             character_anime: userSettings.character_anime,
+            description: userSettings.description,
         });
     }
 }
