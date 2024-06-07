@@ -2,7 +2,7 @@
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import { auth, db } from "../../private/firebase"
 import { signOut, signInWithPopup, GoogleAuthProvider, User, } from "firebase/auth";
-import { getDoc, setDoc, doc } from "firebase/firestore";
+import { getDoc, setDoc, doc, getDocs, query, collection, deleteDoc } from "firebase/firestore";
 
 //Establing user settings type
 //UserSettings.id == User.uid
@@ -15,37 +15,36 @@ type UserSettings = {
     description: string,
 }
 
+type CardData = {
+    charfirstname: string,
+    charlastname: string,
+    charimage: string,
+    anime: string,
+    description: string,
+    isEditing: boolean,
+}
+
 type AuthUser = User | null;
 
-const UserContext = createContext<{ user: AuthUser; userSettings: UserSettings | null; saveUserSettings: Function } | undefined>(undefined);
+const UserContext = createContext<{ user: AuthUser; userSettings: UserSettings | null; saveUserSettings: Function; cards: CardData[]; saveCard: Function; deleteCard: Function } | undefined>(undefined);
 
 //provider component to wrap around <main> in page.tsx
 export function UserContextProvider({ children }: { children: ReactNode }) {
     const [user, setUser] = useState<AuthUser>(null);
     const [userSettings, setUserSettings] = useState<UserSettings | null>(null);
-
-    function saveUserSettings(character_fname: string, character_lname: string, character_image: string, character_anime: string, description: string,) {
-        console.log(user);
-        console.log(userSettings);
-
-        if (user != null) {
-            setUserSettings({
-                id: user.uid,
-                character_fname: character_fname,
-                character_lname: character_lname,
-                character_image: character_image,
-                character_anime: character_anime,
-                description: description,
-
-
-            });
-            console.log(`User settings from saveUserSettings ${userSettings}`);
-        }
-    }
+    const [cards, setCards] = useState<CardData[]>([]);
 
     useEffect(() => {
-        writeUserSettings(userSettings);
-    }, [userSettings])
+        if (user) {
+            fetchUserCards(user.uid);
+        }
+    }, [user]);
+
+    useEffect(() => {
+        if (userSettings) {
+            writeUserSettings(userSettings);
+        }
+    }, [userSettings]);
 
     useEffect(() => {
         const unsubscribe = auth.onAuthStateChanged((user) => findUser(user));
@@ -57,15 +56,67 @@ export function UserContextProvider({ children }: { children: ReactNode }) {
 
         if (user !== null) {
             setUserSettings(await findUserSettings(user.uid));
+            fetchUserCards(user.uid);
         } else {
             setUserSettings(null);
         }
     }
 
+    async function fetchUserCards(userId: string) {
+        const q = query(collection(db, "users", userId, "cards"));
+        const querySnapshot = await getDocs(q);
+        const userCards: CardData[] = [];
+        querySnapshot.forEach((doc) => {
+            userCards.push(doc.data() as CardData);
+        });
+        setCards(userCards);
+    }
 
+    async function saveCard(card: CardData) {
+        if (user) {
+            const userDocRef = doc(collection(db, "users", user.uid, "cards"));
+            await setDoc(userDocRef, card);
+            setCards((prevCards) => [...prevCards, card]);
+        }
+    }
+
+    async function deleteCard(cardIndex: number) {
+        if (user) {
+            const cardToDelete = cards[cardIndex];
+            const q = query(collection(db, "users", user.uid, "cards"));
+            const querySnapshot = await getDocs(q);
+            querySnapshot.forEach(async (doc) => {
+                const data = doc.data();
+                if (
+                    data.charfirstname === cardToDelete.charfirstname &&
+                    data.charlastname === cardToDelete.charlastname &&
+                    data.charimage === cardToDelete.charimage &&
+                    data.anime === cardToDelete.anime &&
+                    data.description === cardToDelete.description
+                ) {
+                    await deleteDoc(doc.ref);
+                }
+            });
+            setCards((prevCards) => prevCards.filter((_, index) => index !== cardIndex));
+        }
+    }
+
+    function saveUserSettings(character_fname: string, character_lname: string, character_image: string, character_anime: string, description: string) {
+        if (user != null) {
+            const newSettings: UserSettings = {
+                id: user.uid,
+                character_fname: character_fname,
+                character_lname: character_lname,
+                character_image: character_image,
+                character_anime: character_anime,
+                description: description,
+            };
+            setUserSettings(newSettings);
+        }
+    }
 
     return (
-        <UserContext.Provider value={{ user, userSettings, saveUserSettings }}>
+        <UserContext.Provider value={{ user, userSettings, saveUserSettings, cards, saveCard, deleteCard }}>
             {children}
         </UserContext.Provider>
     );
@@ -83,10 +134,8 @@ async function findUserSettings(uid: string) {
     }
 }
 
-
 function writeUserSettings(userSettings: UserSettings | null | undefined) {
     if (userSettings != null) {
-        console.log(`This is failing ${userSettings}`);
         setDoc(doc(db, "users", userSettings.id), {
             character_fname: userSettings.character_fname,
             character_lname: userSettings.character_lname,
@@ -119,4 +168,19 @@ export function useUserSettingsContext() {
 export function useSaveUserSettingsContext() {
     const context = useContext(UserContext);
     return context?.saveUserSettings;
+}
+
+export function useCardsContext() {
+    const context = useContext(UserContext);
+    return context?.cards;
+}
+
+export function useSaveCardContext() {
+    const context = useContext(UserContext);
+    return context?.saveCard;
+}
+
+export function useDeleteCardContext() {
+    const context = useContext(UserContext);
+    return context?.deleteCard;
 }

@@ -1,8 +1,8 @@
 'use client'
 
 import React, { useEffect, useState } from "react";
-import { useUserContext, useSaveUserSettingsContext, useUserSettingsContext } from "../../context/userContext";
-import { Grid, Container, Card, CardContent, CardActions, Button, TextField, Typography, Box } from "@mui/material";
+import { useUserContext, useSaveUserSettingsContext, useUserSettingsContext, useCardsContext, useSaveCardContext, useDeleteCardContext } from "../../context/userContext";
+import { Card, CardContent, CardActions, Button, TextField, Typography, Box, Grid, Container } from "@mui/material";
 
 interface CardData {
     charfirstname: string,
@@ -17,15 +17,35 @@ const Profile = () => {
     const user = useUserContext();
     const userSettings = useUserSettingsContext();
     const saveUserSettings = useSaveUserSettingsContext();
+    const cards = useCardsContext();
+    const saveCard = useSaveCardContext();
+    const deleteCard = useDeleteCardContext();
+
     const [charfirstname, setCharFirstName] = useState("");
     const [charlastname, setCharLastName] = useState("");
     const [charimage, setCharImage] = useState("");
     const [anime, setAnime] = useState("");
     const [description, setDescription] = useState("");
     const [isEditing, setIsEditing] = useState(false);
-    const [cards, setCards] = useState<CardData[]>([]);
+    const [cardList, setCardList] = useState<CardData[]>([]);
 
-    function handleSaveUser() {
+    useEffect(() => {
+        if (userSettings) {
+            setCharFirstName(userSettings.character_fname);
+            setCharLastName(userSettings.character_lname);
+            setCharImage(userSettings.character_image);
+            setAnime(userSettings.character_anime);
+            setDescription(userSettings.description);
+        }
+    }, [userSettings]);
+
+    useEffect(() => {
+        if (cards) {
+            setCardList(cards);
+        }
+    }, [cards]);
+
+    const handleSaveUser = () => {
         if (saveUserSettings != null) {
             const newCard: CardData = {
                 charfirstname,
@@ -36,8 +56,7 @@ const Profile = () => {
                 isEditing: false,
             };
 
-            // Check for duplicate card
-            const isDuplicate = cards.some(card =>
+            const isDuplicate = cardList.some(card =>
                 card.charfirstname === newCard.charfirstname &&
                 card.charlastname === newCard.charlastname &&
                 card.charimage === newCard.charimage &&
@@ -45,166 +64,122 @@ const Profile = () => {
                 card.description === newCard.description
             );
 
-            if (!isDuplicate) {
-                setCards([...cards, newCard]);
+            if (!isDuplicate && saveCard) {
+                saveCard(newCard);
             }
 
             saveUserSettings(charfirstname, charlastname, charimage, anime, description);
             setIsEditing(false);
             resetFields();
         }
-    }
+    };
 
-    function resetFields() {
+    const resetFields = () => {
         setCharFirstName("");
         setCharLastName("");
         setCharImage("");
         setAnime("");
         setDescription("");
-    }
-
-    function handleFirstNameChange(e: React.ChangeEvent<HTMLInputElement>) {
-        setCharFirstName(e.target.value);
-    }
-    function handleLastNameChange(e: React.ChangeEvent<HTMLInputElement>) {
-        setCharLastName(e.target.value);
-    }
-    function handleImageChange(e: React.ChangeEvent<HTMLInputElement>) {
-        setCharImage(e.target.value);
-    }
-    function handleAnimeChange(e: React.ChangeEvent<HTMLInputElement>) {
-        setAnime(e.target.value);
-    }
-    function handleDescriptionChange(e: React.ChangeEvent<HTMLInputElement>) {
-        setDescription(e.target.value);
-    }
-
-    const handleEditCard = (index: number) => {
-        const newCards = cards.map((card, i) => {
-            if (i === index) {
-                card.isEditing = true;
-            }
-            return card;
-        });
-        setCards(newCards);
     };
 
-    const handleSaveCard = (index: number) => {
-        const newCards = cards.map((card, i) => {
-            if (i === index) {
-                card.isEditing = false;
-            }
-            return card;
-        });
-        setCards(newCards);
+    const handleFirstNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setCharFirstName(e.target.value);
+    };
+    const handleLastNameChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setCharLastName(e.target.value);
+    };
+    const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setCharImage(e.target.value);
+    };
+    const handleAnimeChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setAnime(e.target.value);
+    };
+    const handleDescriptionChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+        setDescription(e.target.value);
+    };
+
+    const handleEditCard = (index: number) => {
+        const newCardList = [...cardList];
+        newCardList[index].isEditing = true;
+        setCardList(newCardList);
     };
 
     const handleDeleteCard = (index: number) => {
-        const newCards = cards.filter((_, i) => i !== index);
-        setCards(newCards);
-    };
-
-    const handleCardChange = (index: number, field: keyof CardData, value: string) => {
-        const newCards = cards.map((card, i) => {
-            if (i === index) {
-                return { ...card, [field]: value };
-            }
-            return card;
-        });
-        setCards(newCards);
-    };
-
-    useEffect(() => {
-        if (userSettings !== undefined && userSettings != null) {
-            setCharFirstName(userSettings.character_fname);
-            setCharLastName(userSettings.character_lname);
-            setCharImage(userSettings.character_image);
-            setAnime(userSettings.character_anime);
-            setDescription(userSettings.description)
+        if (deleteCard) {
+            deleteCard(index);
         }
-    }, [userSettings]);
+    };
+
+    const handleCardChange = (index: number, field: string, value: string) => {
+        const newCardList = [...cardList];
+        (newCardList[index] as any)[field] = value;
+        setCardList(newCardList);
+    };
+
+    const handleSaveCard = (index: number) => {
+        const newCardList = [...cardList];
+        newCardList[index].isEditing = false;
+        setCardList(newCardList);
+    };
 
     return (
         <>
-            <div style={{ borderStyle: "solid", padding: 20, margin: 5 }}>
-                <img src={user?.photoURL ?? ""} alt="User profile" />
-                <h3>Name: {user?.displayName}</h3>
-                <h3>Email: {user?.email}</h3>
-
-                {user != null ? (
-                    isEditing ? (
-                        <Typography>
-                            <TextField
-                                type="text"
-                                placeholder="First name"
-                                value={charfirstname}
-                                onChange={handleFirstNameChange}
-                            />
-                            <br />
-                            <br />
-                            <TextField
-                                type="text"
-                                placeholder="Last Name"
-                                value={charlastname}
-                                onChange={handleLastNameChange}
-                            />
-                            <br />
-                            <br />
-                            <TextField
-                                type="text"
-                                placeholder="Image"
-                                value={charimage}
-                                onChange={handleImageChange}
-                            />
-                            <br />
-                            <br />
-                            <TextField
-                                type="text"
-                                placeholder="Anime Link"
-                                value={anime}
-                                onChange={handleAnimeChange}
-                            />
-                            <br />
-                            <br />
-                            <TextField
-                                type="text"
-                                placeholder="Description"
-                                value={description}
-                                onChange={handleDescriptionChange}
-                            />
-                            <br />
-                            <br />
-                            <Button onClick={handleSaveUser}>Save User</Button>
-                        </Typography>
-                    ) : (
-                        <Box>
-                            <Typography variant="body1"><strong>First Name:</strong> {charfirstname}</Typography>
-                            <Typography variant="body1"><strong>Last Name:</strong> {charlastname}</Typography>
-                            <Typography variant="body1"><strong>Image:</strong> {charimage}</Typography>
-                            <Typography variant="body1"><strong>Link to Anime:</strong> {anime}</Typography>
-                            <Typography variant="body1"><strong>Description:</strong> {description}</Typography>
-                            <Button onClick={() => setIsEditing(true)} variant="contained" color="primary">Edit Profile</Button>
-                        </Box>
-                    )
-                ) : (
-                    <Typography variant="body1">User not found</Typography>
-                )}
-            </div>
-
             <Container>
+                <Box sx={{ my: 4 }}>
+                    <Typography variant="h4" component="h1" gutterBottom>
+                        User Profile
+                    </Typography>
+                    <TextField
+                        type="text"
+                        placeholder="Character Firstname"
+                        value={charfirstname}
+                        onChange={handleFirstNameChange}
+                    />
+                    <br />
+                    <TextField
+                        type="text"
+                        placeholder="Character Lastname"
+                        value={charlastname}
+                        onChange={handleLastNameChange}
+                    />
+                    <br />
+                    <TextField
+                        type="text"
+                        placeholder="Character Image"
+                        value={charimage}
+                        onChange={handleImageChange}
+                    />
+                    <br />
+                    <TextField
+                        type="text"
+                        placeholder="Anime Link"
+                        value={anime}
+                        onChange={handleAnimeChange}
+                    />
+                    <br />
+                    <TextField
+                        type="text"
+                        placeholder="Description"
+                        value={description}
+                        onChange={handleDescriptionChange}
+                    />
+                    <br />
+                    <Button onClick={handleSaveUser}>Save User</Button>
+                </Box>
                 <Grid container spacing={2}>
-                    {cards.map((card, index) => (
-                        <Grid item xs={12} sm={6} md={4} key={index}>
-                            <Card style={{ marginTop: 20, height: "100%", display: 'flex', flexDirection: 'column' }}>
-                                {card.charimage && (
-                                    <div style={{
+                    {cardList.map((card, index) => (
+                        <Grid item xs={4} key={index}>
+                            <Card>
+                                <div
+                                    style={{
+                                        width: '100%',
+                                        height: '200px',
                                         backgroundImage: `url(${card.charimage})`,
                                         backgroundSize: 'cover',
                                         backgroundPosition: 'center',
-                                        height: '50%',
-                                    }} />
-                                )}
-                                <CardContent style={{ height: '50%', overflow: 'auto' }}>
+                                    }}
+                                />
+                                <CardContent>
                                     {card.isEditing ? (
                                         <div>
                                             <TextField

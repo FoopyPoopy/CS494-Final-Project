@@ -20,6 +20,7 @@ const Navbar = () => {
         setAnchorElUser(null);
         if (setting === 'Logout') {
             logOut();
+            window.location.href = '/'
         }
         if (setting === 'Profile') {
             window.location.href = '/profile';
