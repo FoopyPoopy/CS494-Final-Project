@@ -2,7 +2,7 @@
 import { createContext, useContext, useState, ReactNode, useEffect } from "react";
 import { auth, db } from "../../private/firebase"
 import { signOut, signInWithPopup, GoogleAuthProvider, User, } from "firebase/auth";
-import { getDoc, setDoc, doc, getDocs, query, collection, deleteDoc } from "firebase/firestore";
+import { getDoc, setDoc, doc, getDocs, query, collection, deleteDoc, updateDoc } from "firebase/firestore";
 
 //Establing user settings type
 //UserSettings.id == User.uid
@@ -16,17 +16,18 @@ type UserSettings = {
 }
 
 type CardData = {
-    charfirstname: string,
-    charlastname: string,
-    charimage: string,
-    anime: string,
-    description: string,
-    isEditing: boolean,
+    charfirstname: string;
+    charlastname: string;
+    charimage: string;
+    anime: string;
+    description: string;
+    isEditing: boolean;
+    isFavorite: boolean; // New property
 }
 
 type AuthUser = User | null;
 
-const UserContext = createContext<{ user: AuthUser; userSettings: UserSettings | null; saveUserSettings: Function; cards: CardData[]; saveCard: Function; deleteCard: Function } | undefined>(undefined);
+const UserContext = createContext<{ user: AuthUser; userSettings: UserSettings | null; saveUserSettings: Function; cards: CardData[]; saveCard: Function; deleteCard: Function; toggleFavorite: Function } | undefined>(undefined);
 
 //provider component to wrap around <main> in page.tsx
 export function UserContextProvider({ children }: { children: ReactNode }) {
@@ -83,6 +84,9 @@ export function UserContextProvider({ children }: { children: ReactNode }) {
     async function deleteCard(cardIndex: number) {
         if (user) {
             const cardToDelete = cards[cardIndex];
+            if (cardToDelete.isFavorite) {
+                return; // Do not delete favorited cards
+            }
             const q = query(collection(db, "users", user.uid, "cards"));
             const querySnapshot = await getDocs(q);
             querySnapshot.forEach(async (doc) => {
@@ -101,6 +105,31 @@ export function UserContextProvider({ children }: { children: ReactNode }) {
         }
     }
 
+    async function toggleFavorite(cardIndex: number) {
+        if (user) {
+            const updatedCards = [...cards];
+            updatedCards[cardIndex].isFavorite = !updatedCards[cardIndex].isFavorite;
+
+            const cardToUpdate = updatedCards[cardIndex];
+            const q = query(collection(db, "users", user.uid, "cards"));
+            const querySnapshot = await getDocs(q);
+            querySnapshot.forEach(async (doc) => {
+                const data = doc.data();
+                if (
+                    data.charfirstname === cardToUpdate.charfirstname &&
+                    data.charlastname === cardToUpdate.charlastname &&
+                    data.charimage === cardToUpdate.charimage &&
+                    data.anime === cardToUpdate.anime &&
+                    data.description === cardToUpdate.description
+                ) {
+                    await updateDoc(doc.ref, { isFavorite: cardToUpdate.isFavorite });
+                }
+            });
+
+            setCards(updatedCards);
+        }
+    }
+
     function saveUserSettings(character_fname: string, character_lname: string, character_image: string, character_anime: string, description: string) {
         if (user != null) {
             const newSettings: UserSettings = {
@@ -116,7 +145,7 @@ export function UserContextProvider({ children }: { children: ReactNode }) {
     }
 
     return (
-        <UserContext.Provider value={{ user, userSettings, saveUserSettings, cards, saveCard, deleteCard }}>
+        <UserContext.Provider value={{ user, userSettings, saveUserSettings, cards, saveCard, deleteCard, toggleFavorite }}>
             {children}
         </UserContext.Provider>
     );
@@ -183,4 +212,9 @@ export function useSaveCardContext() {
 export function useDeleteCardContext() {
     const context = useContext(UserContext);
     return context?.deleteCard;
+}
+
+export function useToggleFavoriteContext() {
+    const context = useContext(UserContext);
+    return context?.toggleFavorite;
 }

@@ -1,8 +1,11 @@
 'use client'
 
 import React, { useEffect, useState } from "react";
-import { useUserContext, useSaveUserSettingsContext, useUserSettingsContext, useCardsContext, useSaveCardContext, useDeleteCardContext } from "../../context/userContext";
-import { Card, CardContent, CardActions, Button, TextField, Typography, Box, Grid, Container } from "@mui/material";
+import { useUserContext, useSaveUserSettingsContext, useUserSettingsContext, useCardsContext, useSaveCardContext, useDeleteCardContext, useToggleFavoriteContext } from "../../context/userContext";
+import { Card, CardContent, CardActions, Button, TextField, Typography, Box, Grid, Container, IconButton } from "@mui/material";
+import FavoriteIcon from '@mui/icons-material/Favorite';
+import FavoriteBorderIcon from '@mui/icons-material/FavoriteBorder';
+import DeleteIcon from '@mui/icons-material/Delete';
 
 interface CardData {
     charfirstname: string,
@@ -11,6 +14,7 @@ interface CardData {
     anime: string,
     description: string,
     isEditing: boolean,
+    isFavorite: boolean,
 }
 
 const Profile = () => {
@@ -20,6 +24,7 @@ const Profile = () => {
     const cards = useCardsContext();
     const saveCard = useSaveCardContext();
     const deleteCard = useDeleteCardContext();
+    const toggleFavorite = useToggleFavoriteContext();
 
     const [charfirstname, setCharFirstName] = useState("");
     const [charlastname, setCharLastName] = useState("");
@@ -54,6 +59,7 @@ const Profile = () => {
                 anime,
                 description,
                 isEditing: false,
+                isFavorite: false,
             };
 
             const isDuplicate = cardList.some(card =>
@@ -120,6 +126,12 @@ const Profile = () => {
         const newCardList = [...cardList];
         newCardList[index].isEditing = false;
         setCardList(newCardList);
+    };
+
+    const handleToggleFavorite = (index: number) => {
+        if (toggleFavorite) {
+            toggleFavorite(index);
+        }
     };
 
     return (
@@ -237,7 +249,12 @@ const Profile = () => {
                                     {!card.isEditing && (
                                         <Button onClick={() => handleEditCard(index)}>Edit</Button>
                                     )}
-                                    <Button onClick={() => handleDeleteCard(index)}>Delete</Button>
+                                    <IconButton onClick={() => handleToggleFavorite(index)}>
+                                        {card.isFavorite ? <FavoriteIcon color="error" /> : <FavoriteBorderIcon />}
+                                    </IconButton>
+                                    <IconButton onClick={() => handleDeleteCard(index)} disabled={card.isFavorite}>
+                                        <DeleteIcon />
+                                    </IconButton>
                                 </CardActions>
                             </Card>
                         </Grid>
