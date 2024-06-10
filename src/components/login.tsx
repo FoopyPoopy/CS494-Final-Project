@@ -57,13 +57,9 @@ const Login = () => {
                             display: 'inline-block',
                         }}
                     >
-                        <div
+                        <img src={card.charimage}
                             style={{
-                                width: '100%',
-                                height: '150px',
-                                backgroundImage: `url(${card.charimage})`,
-                                backgroundSize: 'cover',
-                                backgroundPosition: 'center',
+                                width: '100%'
                             }}
                         />
                         <CardContent>
