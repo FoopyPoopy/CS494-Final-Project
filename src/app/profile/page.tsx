@@ -182,13 +182,9 @@ const Profile = () => {
                     {cardList.map((card, index) => (
                         <Grid item xs={4} key={index}>
                             <Card>
-                                <div
+                                <img src={card.charimage}
                                     style={{
                                         width: '100%',
-                                        height: '200px',
-                                        backgroundImage: `url(${card.charimage})`,
-                                        backgroundSize: 'cover',
-                                        backgroundPosition: 'center',
                                     }}
                                 />
                                 <CardContent>
